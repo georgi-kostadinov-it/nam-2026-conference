@@ -24,6 +24,14 @@ test.describe('Home is a way in, not a feed', () => {
     }
   });
 
+  test('shows a static "Built at NAM 2026" line below the existing content', async ({ page }) => {
+    await visit(page, '/');
+    const line = page.getByTestId('built-at');
+    await expect(line).toBeVisible();
+    await expect(line).toHaveText('Built at NAM 2026');
+    await expect(line).not.toHaveRole('link');
+  });
+
   test('no announcement appears before it was posted', async ({ page, request }) => {
     const days = await conferenceDays();
     const all = await (await request.get(`${API}/announcements`)).json();
