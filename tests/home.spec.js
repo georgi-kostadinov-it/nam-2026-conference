@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { API, visit, momentOn, conferenceDays, ATTENDEES } from './helpers.js';
+import { API, visit, momentOn, conferenceDays, ATTENDEES, shotForPR } from './helpers.js';
 
 
 test.describe('Home is a way in, not a feed', () => {
@@ -30,6 +30,7 @@ test.describe('Home is a way in, not a feed', () => {
     await expect(line).toBeVisible();
     await expect(line).toHaveText('Built at NAM 2026');
     await expect(line).not.toHaveRole('link');
+    await shotForPR(page, 'Home footer shows "Built at NAM 2026"');
   });
 
   test('no announcement appears before it was posted', async ({ page, request }) => {

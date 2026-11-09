@@ -139,6 +139,12 @@ export function HomePage() {
       <QuickLinks />
       <Reveal><LatestAnnouncement /></Reveal>
       <SponsorMarquee />
+      <p
+        data-testid="built-at"
+        className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint"
+      >
+        Built at NAM 2026
+      </p>
     </div>
   );
 }

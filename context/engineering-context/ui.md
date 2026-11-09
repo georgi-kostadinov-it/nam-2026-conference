@@ -159,13 +159,16 @@ plus `Speakers` buttons) → `QuickLinks` (`quick-links`, a `nav` of the `LINKS`
 array: Schedule, Speakers, Venues, Food & drink, Expo) → `LatestAnnouncement`
 (`announcements`: the single newest posted one, pinned first, filtered by
 `postedAt <= clock`, so nothing appears before it was written) →
-`SponsorMarquee` (venues doc). Sections that return `null` would leave their
-`<Reveal>` wrapper as a gap, so the container has `[&>:empty]:hidden`.
-`tests/home.spec.js` asserts the five links, the announcement cut-off, and that
-none of `today-panel`, `live-now`, `speaking-strip`, `followed-sessions`, `next-up`
-is on the page — no component renders those ids; a ticket that puts a personal or
-live section on Home updates that test. A new home section is a component that
-returns `null` when empty, wrapped in `<Reveal>`.
+`SponsorMarquee` (venues doc) → a static `built-at` line ("Built at NAM 2026"),
+plain text styled like the hero's byline. Sections that return `null` would
+leave their `<Reveal>` wrapper as a gap, so the container has
+`[&>:empty]:hidden`.
+`tests/home.spec.js` asserts the five links, the announcement cut-off, the
+`built-at` line, and that none of `today-panel`, `live-now`, `speaking-strip`,
+`followed-sessions`, `next-up` is on the page — no component renders those
+ids; a ticket that puts a personal or live section on Home updates that test.
+A new home section is a component that returns `null` when empty, wrapped in
+`<Reveal>`.
 
 **`RouteChange`** — on `pathname` change only (not search), scrolls to top and
 focuses `#main`. **`NotFoundPage`** — the `*` route; its heading "Nothing
