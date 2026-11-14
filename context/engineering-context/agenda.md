@@ -1,6 +1,6 @@
 ---
 area: agenda
-summary: The attendee's own conference — the My Agenda placeholder page, and the endpoints a team builds an agenda on (/users/:id/schedule and /today, the speaker's own sessions, the .ics exports), none of which has a UI yet.
+summary: The attendee's own conference — My Agenda lists their sessions day by day with Remove, and the endpoints it and a team builds further agenda views on (/users/:id/schedule and /today, the speaker's own sessions, the .ics exports).
 read_when: touching My Agenda, an attendee's day or schedule, suggestions, clashes or booked-hours totals, a speaker's own sessions, or calendar export
 files:
   - server/lib/agenda.js
@@ -8,9 +8,11 @@ files:
   - src/pages/MyAgendaPage.jsx
 tests:
   - tests/home.spec.js
+  - tests/my-agenda.spec.js
   - tests/api/agenda.test.js
   - tests/api/calendar.test.js
   - tests/unit/ical.test.js
+  - tests/unit/format.test.js
 related: [seats, attendance, clock, venues, schedule, speakers, ui]
 ---
 
