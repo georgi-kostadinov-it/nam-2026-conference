@@ -18,18 +18,21 @@ related: [seats, attendance, clock, venues, schedule, speakers, ui]
 
 # Agenda
 
-**My Agenda is a placeholder.** `/my-agenda` (`MyAgendaPage`, still in the nav,
-`/my-plan` redirects there) renders a `SectionHeader` and a "Coming soon" panel
-(`agenda-coming-soon`) with a `Browse the schedule` button — nothing else. Workshop
-teams design the page from scratch. Everything underneath it is built and tested:
-adding a session takes a seat (seats doc), and the payloads below are served,
-with matching functions in `src/lib/api.js`. What a day is made of is decided in
-`server/lib/agenda.js`; routes in `server/routes/users.js` only validate and call it.
+**My Agenda is built.** `/my-agenda` (`MyAgendaPage`, still in the nav, `/my-plan`
+redirects there) fetches `api.getSchedule(currentUserId)` and lists the attendee's
+sessions one block per day that has any, in time order, each row a `SessionCard
+variant="row"` with a Remove that releases the seat (or waitlist place) at once,
+no refetch — see "Building on it" below. An attendee with no reservations still
+sees a "Coming soon" panel (`agenda-coming-soon`) with a `Browse the schedule`
+button. Everything underneath it is built and tested: adding a session takes a
+seat (seats doc), and the payloads below are served, with matching functions in
+`src/lib/api.js`. What a day is made of is decided in `server/lib/agenda.js`;
+routes in `server/routes/users.js` only validate and call it.
 
 ## How it works
 
 **`GET /api/users/:id/schedule`** → `{ user: toUser(row), days: scheduleFor(id) }`.
-Client: `api.getSchedule(userId)` — no UI calls it yet.
+Client: `api.getSchedule(userId)`, used by `MyAgendaPage`.
 `agenda.js:scheduleFor` returns one entry per day that has any reservation:
 `{ date, sessions (each with reservation, checkedIn, myStars), conflicts, totalMinutes,
 waitlistedMinutes, venuesVisited }`. `checkedIn` (bool) and `myStars` (number or `null`)
