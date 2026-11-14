@@ -91,7 +91,7 @@ Dates are parsed at `T12:00:00Z` with `timeZone: 'UTC'` so they never shift.
 | `EmptyState` | `icon='search', title, description, action` |
 | `ErrorState` | `error, onRetry` — an `EmptyState` titled "That did not load" |
 | `NotFoundState` | `title, backTo, backLabel` — an `EmptyState` with a link back instead of a retry button, for a 404 that can never succeed on retry (`SessionPage`, `SpeakerPage`) |
-| `Stat` | `value` (numbers animate via `CountUp`), `label, accent, testId, note?` — `note` is a quieter line under the label, for a caveat on the number (e.g. `+Nh waitlisted` beside booked hours). No page renders one yet |
+| `Stat` | `value` (numbers animate via `CountUp`; a string, e.g. `format.js:hours`'s output, renders as-is), `label, accent, testId, note?` — `note` is a quieter line under the label, for a caveat on the number. My Agenda's per-day total is the example: `value={hours(totalMinutes)}`, `note` is `+Nh waitlisted` when `waitlistedMinutes` is above zero, else `null` (agenda doc) |
 
 **`Icon.jsx`.** `Icon({ name, className='size-5', filled, ...rest })` — stroke
 icons, `aria-hidden`; an unknown name renders **nothing** (no error). Names:

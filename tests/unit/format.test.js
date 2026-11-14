@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { time, timeRange, dayLabel, shortDay, relativeDate, plural, agendaSummary } from '../../src/lib/format.js';
+import { time, timeRange, dayLabel, shortDay, relativeDate, plural, agendaSummary, hours } from '../../src/lib/format.js';
 
 describe('Clock times read as people say them', () => {
   test('midnight and noon are twelve, not zero', () => {
@@ -118,5 +118,22 @@ describe('The schedule rail\'s agenda line pluralises on the total and names the
 
   test('a day other than the clock\'s is named instead of assumed to be today', () => {
     assert.equal(agendaSummary(3, 2, 'on Day 1'), 'sessions · 2 on Day 1');
+  });
+});
+
+describe('Booked hours drop the decimal when there is none', () => {
+  test('a whole number of hours carries no decimal', () => {
+    assert.equal(hours(180), '3h');
+    assert.equal(hours(60), '1h');
+  });
+
+  test('a fractional hour keeps just enough decimal to read back exactly', () => {
+    assert.equal(hours(210), '3.5h');
+    assert.equal(hours(90), '1.5h');
+    assert.equal(hours(45), '0.75h');
+  });
+
+  test('no time at all reads as zero, not blank', () => {
+    assert.equal(hours(0), '0h');
   });
 });

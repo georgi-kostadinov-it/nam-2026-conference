@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { API, visit, momentOn, conferenceDays, ATTENDEES } from './helpers.js';
+import { API, visit, momentOn, conferenceDays, clearAgendaFor, ATTENDEES } from './helpers.js';
 
 
 test.describe('Home is a way in, not a feed', () => {
@@ -44,9 +44,15 @@ test.describe('Home is a way in, not a feed', () => {
   });
 });
 
-test.describe('My Agenda is a blank canvas', () => {
-  test('it says it is coming soon, and is still in the nav', async ({ page }, testInfo) => {
-    await visit(page, '/');
+test.describe('My Agenda with nothing booked', () => {
+  test('it offers the schedule instead of an empty page, and is still in the nav', async ({ page, request }, testInfo) => {
+    // The seed gives every attendee a plan, so "no reservations" does not occur
+    // on its own — manufacture it. Kenji's reservations are not read or
+    // mutated by any other spec, so clearing his whole plan is safe here.
+    const days = await conferenceDays();
+    for (const day of days) await clearAgendaFor(request, ATTENDEES.kenji, day);
+
+    await visit(page, '/', { as: ATTENDEES.kenji });
     // Desktop shows the main nav; a phone hides it behind the menu button.
     if (testInfo.project.name === 'mobile') {
       await page.getByRole('button', { name: 'Open menu' }).click();
@@ -56,8 +62,10 @@ test.describe('My Agenda is a blank canvas', () => {
     }
     await expect(page).toHaveURL(/\/my-agenda$/);
     await expect(page.getByTestId('agenda-coming-soon')).toContainText('Coming soon');
+    await page.getByTestId('agenda-coming-soon').getByRole('link', { name: 'Browse the schedule' }).click();
+    await expect(page).toHaveURL(/\/schedule/);
 
-    await visit(page, '/my-plan');
+    await visit(page, '/my-plan', { as: ATTENDEES.kenji });
     await expect(page).toHaveURL(/\/my-agenda$/);
     await expect(page.getByTestId('agenda-coming-soon')).toBeVisible();
   });
