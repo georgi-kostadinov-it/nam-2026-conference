@@ -29,7 +29,7 @@ and a bound `?` to `args`:
 | param | clause |
 | --- | --- |
 | `day` | `s.day = ?` |
-| `trackSlug` | `t.slug = ?` |
+| `trackSlug` | `t.slug IN (?, …)` — comma-separated for several tracks, one `?` per slug |
 | `venueId` / `roomId` | `v.id = ?` / `r.id = ?` |
 | `level` / `format` | `s.level = ?` / `s.format = ?` |
 | `q` | `LIKE %q%` on title, abstract, subtitle, or any speaker name (`EXISTS`) |
@@ -74,7 +74,11 @@ Below `lg` the open rail is compact so the first card stays in view at 393×659:
 row (no weekday or count), tracks in one scrolling row (the Day and Track headings turn screen-reader-only), selects in two columns, and the
 My agenda card is desktop-only (`starred-count` stays in the DOM, `hidden lg:block`);
 its link opens `/my-agenda`, which is a placeholder (agenda doc).
-`result-count` shows `Loading…` then `N sessions`.
+`result-count` shows `Loading…` then `N sessions`. Track pills are a toggle
+group, not a single choice: `selectedTracks` (from `filters.track`, split on
+`,`) drives `aria-pressed` on each, and `toggleTrack(slug)` adds or removes a
+slug and writes `filters.track` back comma-joined (or `'all'` when none are
+left) — one selected track is the same URL and API call as before.
 
 **`ScheduleGrid`** (`schedule-grid`, `role="table"`) — splits `sessions` into
 `gridSessions` and `bannerSessions` (`isKeynote || format === 'Social'`). Columns
