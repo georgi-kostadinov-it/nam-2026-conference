@@ -112,4 +112,105 @@ test.describe('My Agenda lists sessions day by day', () => {
     const released = await (await request.get(`${API}/sessions/${target.id}`)).json();
     expect(released.seatsTaken).toBe(afterBooking.seatsTaken - 1);
   });
+
+  test('flags an impossible venue hop and a waitlisted overlap, and clears a flag when a session is removed', async ({ page, request }, testInfo) => {
+    const mobile = testInfo.project.name === 'mobile';
+    // Jonas and Marcus, day index 1, are not touched by the "groups sessions"
+    // test above (which uses Andy/Abraham) or by tests/seats.spec.js (which
+    // never books either of them on this day) — a fresh lane, so this test's
+    // own bookings cannot race either.
+    const user = mobile ? ATTENDEES.marcus : ATTENDEES.jonas;
+    const days = await conferenceDays();
+    const day = days[1];
+
+    // Day 1's grid runs 45-minute slots with a 30-minute changeover, and the
+    // seed's Aurora<->Foundry travel (shuttle/rideshare/taxi, 18-29 min) plus
+    // an 11-16 min room walk clears that everywhere except the Foundry Cargo
+    // Bay room (14 min walk) and Aurora's Neon Lounge (16 min walk), where
+    // even the fastest paid ride overruns a 30-minute changeover — the
+    // impossible hop below. The 75-minute lunch break clears it easily — the
+    // "fits" hop. Fixture, chosen from the seed for this attendee on day 1:
+    //   away           — booked here, Foundry Cargo Bay; a 30-min changeover
+    //                    from `impossibleOther` (impossible) and a 75-min one
+    //                    from `fitsOther` (fits)
+    //   impossibleOther — the other half of the impossible-hop pair
+    //   fitsOther       — the other half of the fits (no-flag) pair
+    //   fullSlot        — already sold out; booking it waitlists this
+    //                     attendee, overlapping `overlapsFull`
+    //   overlapsFull    — booked here, same room/venue/time as `fullSlot`
+    //   alreadyHeld     — fixture members the seed already books for this
+    //                     attendee, so only the rest need booking
+    const fixture = mobile
+      ? { away: 52, impossibleOther: 55, fitsOther: 46, fullSlot: 40, overlapsFull: 42, alreadyHeld: [46, 40] }
+      : { away: 48, impossibleOther: 40, fitsOther: 50, fullSlot: 54, overlapsFull: 56, alreadyHeld: [40, 50] };
+    // `fullSlot` is already waitlisted for Marcus from the seed, so only
+    // Jonas needs to book it (before `overlapsFull` — see below).
+    const toBook = mobile
+      ? [fixture.overlapsFull, fixture.away, fixture.impossibleOther]
+      : [fixture.away, fixture.fullSlot, fixture.overlapsFull];
+
+    const before = await (await request.get(`${API}/users/${user}/schedule`)).json();
+    const beforeDay = before.days.find((d) => d.date === day);
+    const heldIds = new Set((beforeDay?.sessions ?? []).map((s) => s.id));
+    for (const id of fixture.alreadyHeld) {
+      expect(heldIds.has(id), `fixture session ${id} should already be held`).toBeTruthy();
+    }
+    for (const id of toBook) {
+      expect(heldIds.has(id), `fixture session ${id} should not be booked yet`).toBeFalsy();
+    }
+
+    const fullSession = await (await request.get(`${API}/sessions/${fixture.fullSlot}`)).json();
+    expect(fullSession.seatsLeft, 'fixture "fullSlot" should already be sold out').toBe(0);
+
+    // Jonas books `fullSlot` before `overlapsFull` (Marcus's `fullSlot` is
+    // already a waitlist place from the seed): the overlap guard only blocks
+    // a *confirmed* clash, so taking the full session's waitlist place
+    // first, then a confirmed seat that overlaps it, raises no 409 — only
+    // the reverse order would (seats.md § Invariants).
+    for (const id of toBook) {
+      const res = await request.put(`${API}/users/${user}/reservations/${id}`);
+      expect(res.ok(), `booking session ${id} should succeed`).toBeTruthy();
+    }
+
+    const [awaySession, impossibleOtherS, fitsOtherS, fullS, overlapS] = await Promise.all(
+      [fixture.away, fixture.impossibleOther, fixture.fitsOther, fixture.fullSlot, fixture.overlapsFull]
+        .map((id) => request.get(`${API}/sessions/${id}`).then((r) => r.json())),
+    );
+
+    await visit(page, '/my-agenda', { as: user, at: `${day}T07:00` });
+    const section = page.getByTestId(`agenda-day-${day}`);
+    await expect(section).toBeVisible();
+
+    // Impossible hop: a flag names both sessions.
+    const hopFlag = section.getByTestId('agenda-flag').filter({ hasText: awaySession.title });
+    await expect(hopFlag).toHaveCount(1);
+    await expect(hopFlag).toContainText(impossibleOtherS.title);
+
+    // Cross-venue hop with enough time for some travel option: no flag
+    // mentions both of these together.
+    const fitsFlag = section.getByTestId('agenda-flag').filter({ hasText: fitsOtherS.title }).filter({ hasText: awaySession.title });
+    await expect(fitsFlag).toHaveCount(0);
+
+    // Waitlist overlap: a flag names both sessions too.
+    const waitlistFlag = section.getByTestId('agenda-flag').filter({ hasText: fullS.title });
+    await expect(waitlistFlag).toHaveCount(1);
+    await expect(waitlistFlag).toContainText(overlapS.title);
+
+    await shotForPR(page, 'my agenda flags an impossible hop and a waitlisted overlap');
+
+    // Removing one session of the flagged hop pair clears it at once, no reload.
+    const awayRow = section.getByTestId('session-card').filter({ hasText: awaySession.title });
+    await awayRow.getByRole('button', { name: 'Remove from my agenda' }).click();
+    await expect(section.getByTestId('agenda-flag').filter({ hasText: awaySession.title })).toHaveCount(0);
+    // The unrelated waitlist flag survives — removal only clears its own pair.
+    await expect(waitlistFlag).toHaveCount(1);
+
+    // Clean up whatever Remove did not already release — everything this
+    // test itself booked, minus `away` (gone via the UI above). Marcus's
+    // `fullSlot` is the seed's own waitlist place, not this test's, so it
+    // is left exactly as the seed made it.
+    for (const id of toBook.filter((sessionId) => sessionId !== fixture.away)) {
+      await request.delete(`${API}/users/${user}/reservations/${id}`);
+    }
+  });
 });
