@@ -5,8 +5,45 @@ import { Icon } from '../components/Icon.jsx';
 import { SessionCard } from '../components/SessionCard.jsx';
 import { useConference, useFetch } from '../lib/store.jsx';
 import * as api from '../lib/api.js';
-import { hasEnded } from '../lib/clock.js';
+import { hasEnded, toMinutes } from '../lib/clock.js';
+import { assessTravel } from '../lib/travel.js';
 import { dayLabel, hours } from '../lib/format.js';
+
+/**
+ * Two sessions, in time order, whose range overlaps — `[startsAt, endsAt)`.
+ */
+function overlaps(a, b) {
+  return a.startsAt < b.endsAt && b.startsAt < a.endsAt;
+}
+
+/**
+ * Flags for one day's sessions (already filtered to what survives and
+ * sorted by `startsAt`, same as `sessions` in the `days` memo below): a
+ * waitlist place that overlaps another session, and a cross-venue hop
+ * between two consecutive sessions that no travel option can make in the
+ * gap. Both are read from `sessions` only, so a flag disappears the moment
+ * the session behind it does — no new state, no refetch (CLAUDE.md § There
+ * is exactly one action).
+ */
+function flagsFor(sessions, travel) {
+  const flags = [];
+  for (let i = 0; i < sessions.length; i++) {
+    for (let j = i + 1; j < sessions.length; j++) {
+      const a = sessions[i], b = sessions[j];
+      if ((a.reservation === 'waitlisted' || b.reservation === 'waitlisted') && overlaps(a, b)) {
+        flags.push({ kind: 'waitlist', a, b });
+      }
+    }
+  }
+  for (let i = 0; i < sessions.length - 1; i++) {
+    const a = sessions[i], b = sessions[i + 1];
+    if (a.venue.id === b.venue.id) continue;
+    const gapMinutes = toMinutes(b.startsAt) - toMinutes(a.endsAt);
+    const assessment = assessTravel({ travel, from: a, to: b, gapMinutes });
+    if (assessment?.impossible) flags.push({ kind: 'hop', a, b });
+  }
+  return flags;
+}
 
 /**
  * Lists the attendee's own sessions, grouped by day. The fetched payload is
@@ -19,7 +56,7 @@ import { dayLabel, hours } from '../lib/format.js';
  */
 export function MyAgendaPage() {
   useDocumentTitle('My Agenda');
-  const { currentUserId, reservationFor, clock } = useConference();
+  const { currentUserId, reservationFor, clock, travel } = useConference();
   const { data, loading, error, reload } = useFetch(() => api.getSchedule(currentUserId), [currentUserId]);
 
   const days = useMemo(() => {
@@ -36,10 +73,11 @@ export function MyAgendaPage() {
         const waitlistedMinutes = sessions
           .filter((s) => s.reservation === 'waitlisted')
           .reduce((sum, s) => sum + s.durationMins, 0);
-        return { date: day.date, sessions, totalMinutes, waitlistedMinutes };
+        const flags = flagsFor(sessions, travel ?? []);
+        return { date: day.date, sessions, totalMinutes, waitlistedMinutes, flags };
       })
       .filter((day) => day.sessions.length > 0);
-  }, [data, reservationFor]);
+  }, [data, reservationFor, travel]);
 
   if (loading && !data) {
     return (
@@ -100,6 +138,20 @@ export function MyAgendaPage() {
                   />
                 ))}
               </div>
+              {day.flags.map((f) => (
+                <div
+                  key={`${f.kind}-${f.a.id}-${f.b.id}`}
+                  data-testid="agenda-flag"
+                  className="flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-200"
+                >
+                  <Icon name="alert" className="mt-0.5 size-4 shrink-0 text-amber-300" />
+                  <p>
+                    {f.kind === 'hop'
+                      ? <>No way to get from <strong className="text-amber-100">{f.a.title}</strong> to <strong className="text-amber-100">{f.b.title}</strong> in time — {f.a.venue.shortName} to {f.b.venue.shortName} in {toMinutes(f.b.startsAt) - toMinutes(f.a.endsAt)} min.</>
+                      : <>Waitlisted for <strong className="text-amber-100">{f.a.reservation === 'waitlisted' ? f.a.title : f.b.title}</strong>, which overlaps <strong className="text-amber-100">{f.a.reservation === 'waitlisted' ? f.b.title : f.a.title}</strong>.</>}
+                  </p>
+                </div>
+              ))}
             </section>
           ))}
         </div>
