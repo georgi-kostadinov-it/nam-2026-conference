@@ -22,12 +22,17 @@ related: [seats, attendance, clock, venues, schedule, speakers, ui]
 redirects there) fetches `api.getSchedule(currentUserId)` and lists the attendee's
 sessions one block per day that has any, in time order, each row a `SessionCard
 variant="row"` with a Remove that releases the seat (or waitlist place) at once,
-no refetch — see "Building on it" below. An attendee with no reservations still
-sees a "Coming soon" panel (`agenda-coming-soon`) with a `Browse the schedule`
-button. Everything underneath it is built and tested: adding a session takes a
-seat (seats doc), and the payloads below are served, with matching functions in
-`src/lib/api.js`. What a day is made of is decided in `server/lib/agenda.js`;
-routes in `server/routes/users.js` only validate and call it.
+no refetch — see "Building on it" below. Each day also gets two kinds of amber
+warning flag (`data-testid="agenda-flag"`, one per flagged pair, naming both
+sessions): a waitlist place overlapping another session, and a cross-venue hop
+between consecutive sessions that no travel option can make in the gap — see
+`flagsFor` in `MyAgendaPage.jsx`. Neither blocks adding, removing or swapping a
+seat. An attendee with no reservations still sees a "Coming soon" panel
+(`agenda-coming-soon`) with a `Browse the schedule` button. Everything
+underneath it is built and tested: adding a session takes a seat (seats doc),
+and the payloads below are served, with matching functions in `src/lib/api.js`.
+What a day is made of is decided in `server/lib/agenda.js`; routes in
+`server/routes/users.js` only validate and call it.
 
 ## How it works
 
@@ -50,8 +55,12 @@ recompute `conflicts`, both minute totals and `venuesVisited` client-side (dropp
 empty days), or a removed session stays on screen until a refresh. Per-session
 attendance for a row is `SessionCard variant="row"`'s `attendance` prop
 (`{ ended: hasEnded(s, clock), checkedIn, myStars }`, schedule doc); booked hours
-under a waitlist caveat fit `Stat`'s `note` (ui doc); a cross-town hop between two
-seats is `travel.js:assessTravel` (venues doc); export is `api.agendaCalendarUrl`.
+under a waitlist caveat fit `Stat`'s `note` (ui doc); export is
+`api.agendaCalendarUrl`. The impossible-hop flag calls `travel.js:assessTravel`
+(venues doc) itself, per consecutive pair, with the gap between them in
+minutes — it does not reuse `scheduleFor`'s `conflicts`, which is the
+pre-removal shape (same reason `totalMinutes`/`waitlistedMinutes` are
+recomputed client-side, not read off the payload).
 
 **`GET /api/users/:id/today?day=&time=`** → `users.js` checks the user exists (404)
 and `day` is present (400), then `agenda.js:todayFor(userId, { day, time })`.
@@ -123,11 +132,23 @@ local `DTSTART`/`DTEND`, `UID:orbit-session-<id>@orbitconf.dev`, LOCATION
   rewrites Host, so `vite.config.js` sets those headers itself — prove a link
   through the web port (`attendance.spec.js`), not by calling the API directly.
 - `speakingSessions` lack `speakers`/`tags` — do not hand them to a component that reads those.
+- The two agenda flags are independent: the waitlist-overlap check is pairwise
+  over every session in the day (an O(n²) scan, same shape as `clashesIn`), but
+  the impossible-hop check only ever looks at consecutive pairs in the sorted
+  list, so a waitlisted session overlapping something two slots away is still
+  caught, while a hop is only ever flagged against its immediate neighbour.
+  Picking two sessions with the same `startsAt` (a genuine waitlist/confirmed
+  overlap) also makes them "consecutive" for the hop check with a negative
+  gap — keep such a pair at the same venue, or the hop check flags it too,
+  for the wrong reason.
 
 ## Where to change…
 
 - The My Agenda page: `MyAgendaPage.jsx`; replace `tests/home.spec.js`'s
   "My Agenda is a blank canvas" test when the placeholder goes.
+- Either agenda flag → `MyAgendaPage.jsx:flagsFor`; prove it in
+  `tests/my-agenda.spec.js`, at the browser layer, since both read derived
+  client state rather than a new rule the server can test.
 - A new field on the day payload → `agenda.js:todayFor`; prove it in `tests/api/` with `startApi()`.
 - Suggestion ranking → `agenda.js:suggestionsFor` / `myTopics` / `openInSlot`.
 - Clash or total rules → `agenda.js:scheduleFor`/`clashesIn`, and any client
