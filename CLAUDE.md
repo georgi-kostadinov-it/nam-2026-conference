@@ -91,7 +91,9 @@ what this app does.
 - `reservations` is the only table. Adding moves `sessions.seats_taken` for
   *everybody*; a full room waitlists you instead; removing a confirmed seat
   promotes whoever has waited longest (skipping anyone who has since taken a seat
-  in that slot). All transactional — `server/lib/seats.js`.
+  in that slot). All transactional — `server/lib/seats.js`. Because a waitlist
+  place can still come good, nothing gives one up but the attendee: a page may
+  suggest a similar session with seats, but never swaps the place out itself.
 - **Hours are hours you hold a chair for.** Anything counting booked time —
   `scheduleFor`'s `totalMinutes` and whatever a page builds on it — counts
   confirmed seats only; queued time is totalled apart (`waitlistedMinutes`,
