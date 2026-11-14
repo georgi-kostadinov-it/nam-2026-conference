@@ -35,6 +35,7 @@ before(async () => {
     venue: boot.venues[0].id,
     room: boot.rooms[0].id,
     track: boot.tracks[0].slug,
+    track2: boot.tracks[1].slug,
     topic: boot.tags.find((t) => t.kind === 'topic').slug,
     level: boot.levels[0].name,
     format: boot.formats[0].name,
@@ -121,6 +122,20 @@ describe('Every endpoint answers', () => {
       assert.ok(Array.isArray(res.body), `GET ${path} did not return a list`);
       assert.ok(res.body.length <= all, `GET ${path} returned more than the unfiltered list`);
     }
+  });
+
+  test('a comma-separated trackSlug lists both tracks, with one trackSlug unchanged', async () => {
+    const onlyA = await api.json(`/sessions?trackSlug=${ids.track}`);
+    const onlyB = await api.json(`/sessions?trackSlug=${ids.track2}`);
+    const both = await api.json(`/sessions?trackSlug=${ids.track},${ids.track2}`);
+
+    // A session has exactly one track, so the two single-track lists cannot
+    // overlap — the combined list is a straight union, no double-counting.
+    assert.equal(both.length, onlyA.length + onlyB.length);
+    assert.ok(onlyA.every((s) => s.track.slug === ids.track));
+    assert.ok(both.every((s) => [ids.track, ids.track2].includes(s.track.slug)));
+    assert.ok(both.some((s) => s.track.slug === ids.track));
+    assert.ok(both.some((s) => s.track.slug === ids.track2));
   });
 
   test('the health check reports ok and the session count', async () => {
