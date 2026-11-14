@@ -25,9 +25,13 @@ you arrive mid-conference and the clock ticks while you watch. Pin it with
 - **Seats** — adding a session takes a seat, or a waitlist place when the
   room is full. Two seats in overlapping slots is a choice, not an error: the
   app offers a swap.
-- **My Agenda** — a blank page marked *coming soon*. Building it is the
-  workshop: the seats, the per-attendee schedule and today's view are all in
-  the API, waiting for a page.
+- **My Agenda** — where an attendee plans the conference in advance and then
+  simply follows it: their sessions day by day across the four days, so they
+  always know where to go next without having to think about it. Sessions are
+  added on the schedule and run at fixed times, so My Agenda shows them and
+  lets you remove one; there is nothing to rearrange. For now it is a blank
+  page marked *coming soon*. Building it is the workshop: the seats, the
+  per-attendee schedule and today's view are all in the API, waiting for a page.
 - **Check in and rate** — check-in opens 15 minutes before a session and closes
   when it ends; you can rate only what you attended, once it is over.
 - **Schedule** — a grid of rooms by time on desktop, a list on a phone, with

@@ -91,7 +91,9 @@ what this app does.
 - `reservations` is the only table. Adding moves `sessions.seats_taken` for
   *everybody*; a full room waitlists you instead; removing a confirmed seat
   promotes whoever has waited longest (skipping anyone who has since taken a seat
-  in that slot). All transactional — `server/lib/seats.js`.
+  in that slot). All transactional — `server/lib/seats.js`. Because a waitlist
+  place can still come good, nothing gives one up but the attendee: a page may
+  suggest a similar session with seats, but never swaps the place out itself.
 - **Hours are hours you hold a chair for.** Anything counting booked time —
   `scheduleFor`'s `totalMinutes` and whatever a page builds on it — counts
   confirmed seats only; queued time is totalled apart (`waitlistedMinutes`,
@@ -120,6 +122,14 @@ Four rules borrowed from real conferences; each writes state and gates the next:
 A clash is a **choice, not an error**: the 409 carries both sessions and the UI
 opens `<ConflictDialog>` side by side with Keep / Swap. Do not demote that to a
 toast — a toast disappears while the decision is still open.
+
+Only overlapping seats are blocked. Two other problems are **flagged on My
+Agenda, not blocked**: a waitlist place that overlaps another of your sessions,
+and a cross-venue hop that cannot be made — consecutive sessions at different
+venues with no travel option fitting the gap, judged by real travel times
+(`travel.js:assessTravel`), not by whether a break sits between them. The
+attendee may know something the app does not, and plans change at the
+conference, so these warn rather than refuse.
 
 The rules run in transactions in `seats.js` and `attendance.js`, taking the
 clock from the *client*, because conference time is simulated. (how:
