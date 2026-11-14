@@ -37,3 +37,6 @@ export const plural = (n, one, many = `${one}s`) => `${n.toLocaleString()} ${n =
 /** The schedule rail's "N sessions · M today"/"M on Day 1" line. `dayPhrase` is the caller's job. */
 export const agendaSummary = (total, bookedOnDay, dayPhrase) =>
   `${total === 1 ? 'session' : 'sessions'} · ${bookedOnDay} ${dayPhrase}`;
+
+/** Minutes as hours for a booked-time tile — "3.5h", never "3.0h" for a whole hour. */
+export const hours = (minutes) => `${Math.round((minutes / 60) * 100) / 100}h`;

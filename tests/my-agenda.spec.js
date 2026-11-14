@@ -87,7 +87,13 @@ test.describe('My Agenda lists sessions day by day', () => {
 
     // Remove: book a fresh session on the empty day directly through the API
     // (this is setup, not what we are proving), then remove it through the UI.
-    const target = (await bookableFor(request, user, emptyDay)).find((s) => s.seatsLeft > 3);
+    // Both projects run this at once on the same empty day for their own
+    // attendee, so each picks from opposite ends of the candidate list —
+    // otherwise they could both land on the same session and this test's
+    // exact seat-count assertion would race the other project's booking.
+    const candidates = await bookableFor(request, user, emptyDay);
+    if (mobile) candidates.reverse();
+    const target = candidates.find((s) => s.seatsLeft > 3);
     expect(target, 'nothing bookable on the empty day').toBeTruthy();
     await request.put(`${API}/users/${user}/reservations/${target.id}`);
     const afterBooking = await (await request.get(`${API}/sessions/${target.id}`)).json();
