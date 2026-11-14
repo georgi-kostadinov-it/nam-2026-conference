@@ -91,6 +91,63 @@ test.describe('Schedule', () => {
     await expect(page.getByRole('heading', { name: 'No sessions match', exact: true })).toBeVisible();
   });
 
+  test('selecting a second track adds its sessions, and removing one drops back', async ({ page, request }) => {
+    const days = await conferenceDays();
+    const { tracks } = await (await request.get(`${API}/bootstrap`)).json();
+
+    const countFor = async (day, slug) => {
+      const res = await (await request.get(`${API}/sessions?day=${day}&trackSlug=${slug}`)).json();
+      return (Array.isArray(res) ? res : res.sessions).length;
+    };
+
+    // Two tracks, on the same day, that both actually have sessions.
+    let pick = null;
+    for (const day of days) {
+      const withCount = [];
+      for (const t of tracks) {
+        const count = await countFor(day, t.slug);
+        if (count > 0) withCount.push({ slug: t.slug, name: t.shortName ?? t.name, count });
+      }
+      if (withCount.length >= 2) { pick = { day, a: withCount[0], b: withCount[1] }; break; }
+    }
+    test.skip(!pick, 'no day has sessions in two different tracks');
+    const { day, a, b } = pick;
+    const both = await countFor(day, `${a.slug},${b.slug}`);
+
+    await visit(page, `/schedule?day=${day}&view=list`);
+    await waitForResults(page);
+
+    const filtersBtn = page.getByRole('button', { name: /^Filters/ });
+    if (await filtersBtn.isVisible()) await filtersBtn.click();
+
+    const pillA = page.getByRole('button', { name: a.name, exact: true });
+    const pillB = page.getByRole('button', { name: b.name, exact: true });
+    await expect(pillA).toHaveAttribute('aria-pressed', 'false');
+    await expect(pillB).toHaveAttribute('aria-pressed', 'false');
+
+    const trackParam = (page) => new URL(page.url()).searchParams.get('track');
+
+    await pillA.click();
+    await waitForResults(page);
+    await expect.poll(() => trackParam(page)).toBe(a.slug);
+    await expect(page.getByTestId('result-count')).toContainText(`${a.count} session`);
+    await expect(pillA).toHaveAttribute('aria-pressed', 'true');
+
+    await pillB.click();
+    await waitForResults(page);
+    await expect.poll(() => trackParam(page)).toBe(`${a.slug},${b.slug}`);
+    await expect(page.getByTestId('result-count')).toContainText(`${both} session`);
+    await expect(pillA).toHaveAttribute('aria-pressed', 'true');
+    await expect(pillB).toHaveAttribute('aria-pressed', 'true');
+
+    await pillA.click();
+    await waitForResults(page);
+    await expect.poll(() => trackParam(page)).toBe(b.slug);
+    await expect(page.getByTestId('result-count')).toContainText(`${b.count} session`);
+    await expect(pillA).toHaveAttribute('aria-pressed', 'false');
+    await expect(pillB).toHaveAttribute('aria-pressed', 'true');
+  });
+
   test('Clear filters clears the search and brings sessions back', async ({ page }) => {
     await visit(page, '/schedule?q=zzqx&view=list');
     await page.getByRole('button', { name: 'Clear filters' }).click();
