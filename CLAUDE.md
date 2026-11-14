@@ -121,6 +121,14 @@ A clash is a **choice, not an error**: the 409 carries both sessions and the UI
 opens `<ConflictDialog>` side by side with Keep / Swap. Do not demote that to a
 toast — a toast disappears while the decision is still open.
 
+Only overlapping seats are blocked. Two other problems are **flagged on My
+Agenda, not blocked**: a waitlist place that overlaps another of your sessions,
+and a cross-venue hop that cannot be made — consecutive sessions at different
+venues with no travel option fitting the gap, judged by real travel times
+(`travel.js:assessTravel`), not by whether a break sits between them. The
+attendee may know something the app does not, and plans change at the
+conference, so these warn rather than refuse.
+
 The rules run in transactions in `seats.js` and `attendance.js`, taking the
 clock from the *client*, because conference time is simulated. (how:
 `context/engineering-context/seats.md`, `attendance.md`)
